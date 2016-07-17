@@ -62,8 +62,11 @@
 	
 	function Game(){
 	  this.canvas = new Canvas;
-	  const scape = new Scape(this.canvas);
-	  this.scape = scape;
+	  this.scapes = [];
+	  for(let i = 0; i < 3; i++){
+	    const scape = new Scape(this.canvas, i*20);
+	    this.scapes.push(scape);
+	  }
 	  // this.player = new Player(scape);
 	}
 	
@@ -74,12 +77,16 @@
 	
 	Game.prototype.render = function(){
 	  this.canvas.render();
-	  this.scape.render();
+	  this.scapes.forEach( scape => {
+	    scape.render();
+	  });
 	  // this.player.render(this.canvas.ctx);
 	};
 	
 	Game.prototype.move = function () {
-	  this.scape.move();
+	  this.scapes.forEach( scape => {
+	    scape.move();
+	  });
 	  // this.player.move();
 	};
 	
@@ -230,21 +237,8 @@
 	  return hsla;
 	};
 	
-	Color.prototype.wave = function () {
-	  const hsla = `hsla(${this.h}, ${this.s}%, ${this.l + this.l + 10}%, 1)`;
-	  return hsla;
-	};
-	
-	Color.prototype.hull = function () {
-	  const hsla = `hsla(${this.h}, 15%, 2%, 1)`;
-	  return hsla;
-	};
-	
-	Color.prototype.sail = function (dif) {
-	  // stands out too much on light bg as is
-	  // alter lightness/opacity based on base lightness??
-	  // return "white";
-	  const hsla = `hsla(${this.h + 135 + dif}, 50%, 80%, 1)`;
+	Color.prototype.mass = function (dif) {
+	  const hsla = `hsla(${this.h + 135 + dif}, ${this.s}%, ${40}%, 1)`;
 	  return hsla;
 	};
 	
@@ -296,9 +290,10 @@
 	const Mass = __webpack_require__(9);
 	const Color = __webpack_require__(4);
 	
-	function Scape(canvas) {
+	function Scape(canvas, dif) {
+	  this.dif = dif;
 	  this.canvas = canvas;
-	  this.spacing = 100;
+	  this.spacing = 200;
 	  this.speed = 3;
 	  this.masses = Mass.generateMasses(
 	    canvas.width,
@@ -317,7 +312,7 @@
 	Scape.prototype.render = function() {
 	  const ctx = this.canvas.ctx;
 	  ctx.save();
-	  ctx.fillStyle = Color.wave();
+	  ctx.fillStyle = Color.mass(this.dif);
 	
 	  this.masses.forEach( mass => {
 	    mass.render(ctx);
@@ -330,11 +325,10 @@
 	  const masses = this.masses;
 	  const spacing = this.spacing;
 	
-	  if(masses[0].x < (0 - spacing * 2)){
+	  if(masses[0].x3 < (0 - spacing * 2)){
 	    const newMass = new Mass(
-	      masses[masses.length-1].x + spacing,
-	      masses[0].y,
-	      masses[0].oldY
+	      masses[masses.length-1].x3 + spacing,
+	      masses[0].y1 - Math.random() * 20
 	    );
 	    masses.push(newMass);
 	    masses.shift();
@@ -351,19 +345,26 @@
 	const Color = __webpack_require__(4);
 	
 	function Mass(x, y){
-	  this.x = x;
-	  this.y = y;
+	  this.x1 = x + (Math.random() * 40 + 20);
+	  this.y1 = y + Math.random() * 40;
+	  this.x2 = x - (Math.random() * 40 + 20);
+	  this.y2 = y + Math.random() * 40;
+	  this.x3 = x;
+	  this.y3 = y + Math.random() * 100 + 75;
 	}
 	
 	Mass.prototype.render = function (ctx) {
-	  ctx.fillStyle = Color.wave();
 	  ctx.beginPath();
-	  ctx.ellipse(this.x, this.y, 20, 20, 0, 0, Math.PI * 2, false);
+	  ctx.moveTo(this.x1, this.y1);
+	  ctx.lineTo(this.x2, this.y2);
+	  ctx.lineTo(this.x3, this.y3);
 	  ctx.fill();
 	};
 	
 	Mass.prototype.move = function (speed) {
-	  this.x -= speed;
+	  this.x1 -= speed;
+	  this.x2 -= speed;
+	  this.x3 -= speed;
 	};
 	
 	Mass.generateMasses = function(width, height, spacing){
@@ -371,9 +372,9 @@
 	  const masses = [];
 	
 	  for (let x = -(spacing * 2); x <= width + spacing * 2; x += spacing) {
-	    let randomOffset = Math.random() * 175;
+	    let randomOffset = Math.random() * 300;
 	    const mass = new Mass(
-	      x + (Math.random()*50 - 25),
+	      x + (Math.random() * 120 - 60),
 	      yCenter + randomOffset
 	    );
 	    masses.push(mass);
