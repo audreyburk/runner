@@ -118,7 +118,10 @@
 	};
 	
 	Player.prototype.move = function () {
-	  console.log(this.speed);
+	  if(this.grounded && Listener.pressed(38)){
+	    this.grounded = false;
+	    this.fallSpeed = -10;
+	  }
 	  const waveData = this.waveData();
 	  if(this.grounded){
 	    this.accelerate(waveData);
@@ -154,7 +157,7 @@
 	    this.grounded = false;
 	  } else {
 	    this.y = waveData[0];
-	    if(this.speed > 0) this.speed += waveData[1];
+	    if(this.speed > this.wave.speed) this.speed += .2 * waveData[1];
 	  }
 	};
 	
@@ -229,7 +232,7 @@
 	  this.h >= 360 ? this.h = 0 : this.h += .5;
 	
 	  if(this.lIncreasing){
-	    if(this.l >= 50){
+	    if(this.l >= 15){
 	      this.lIncreasing = false;
 	      this.l -= .05;
 	    } else this.l += .05;
@@ -244,12 +247,12 @@
 	};
 	
 	Color.prototype.main = function () {
-	  const hsla = `hsla(${this.h}, ${this.s}%, ${this.l + 50}%, 1)`;
+	  const hsla = `hsla(${this.h}, ${this.s}%, ${this.l}%, 1)`;
 	  return hsla;
 	};
 	
 	Color.prototype.wave = function () {
-	  const hsla = `hsla(${this.h}, ${this.s}%, ${this.l}%, 1)`;
+	  const hsla = `hsla(${this.h}, ${this.s}%, ${this.l + this.l + 10}%, 1)`;
 	  return hsla;
 	};
 	
@@ -279,7 +282,7 @@
 	function Wave(canvas) {
 	  this.canvas = canvas;
 	  this.spacing = 100;
-	  this.speed = 5;
+	  this.speed = -5;
 	  this.points = Point.generatePoints(
 	    canvas.width,
 	    canvas.height,
@@ -368,7 +371,7 @@
 	
 	Point.prototype.move = function (speed) {
 	  this.y = this.oldY + Math.sin(this.angle) * this.amplitude;
-	  this.x -= speed;
+	  this.x += speed;
 	  this.angle += this.speed;
 	};
 	
@@ -394,6 +397,7 @@
 	    e.preventDefault();
 	    this.keys[e.keyCode] = true;
 	  }
+	  console.log(this.keys);
 	};
 	
 	Listener.prototype._keyUp = function (e) {
