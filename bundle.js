@@ -63,11 +63,11 @@
 	function Game(){
 	  this.canvas = new Canvas;
 	  this.scapes = [];
-	  for(let i = 0; i < 3; i++){
-	    const scape = new Scape(this.canvas, i*20);
+	  for(let i = 0; i < 1; i++){
+	    const scape = new Scape(this.canvas, i);
 	    this.scapes.push(scape);
 	  }
-	  // this.player = new Player(scape);
+	  this.player = new Player(this.scapes);
 	}
 	
 	Game.init = function(){
@@ -80,14 +80,14 @@
 	  this.scapes.forEach( scape => {
 	    scape.render();
 	  });
-	  // this.player.render(this.canvas.ctx);
+	  this.player.render(this.canvas.ctx);
 	};
 	
 	Game.prototype.move = function () {
 	  this.scapes.forEach( scape => {
 	    scape.move();
 	  });
-	  // this.player.move();
+	  this.player.move();
 	};
 	
 	Game.prototype.run = function(){
@@ -107,17 +107,17 @@
 	const Color = __webpack_require__(4);
 	const Listener = __webpack_require__(7);
 	
-	function Player(wave){
-	  this.wave = wave;
+	function Player(scapes){
+	  this.scapes = scapes;
 	  this.x = 400;
-	  this.y = 400;
+	  this.y = 200;
 	  this.grounded = true;
 	  this.fallSpeed = 0;
 	  this.fallTime = 0;
 	}
 	
 	Player.prototype.render = function (ctx) {
-	  ctx.fillStyle = Color.wave();
+	  ctx.fillStyle = Color.main();
 	  ctx.beginPath();
 	  ctx.ellipse(this.x, this.y, 20, 20, 0, 0, Math.PI * 2, false);
 	  ctx.fill();
@@ -161,7 +161,7 @@
 	
 	      // this.tilt = (Math.PI / 2) * heightWidthRatio * (leftWeight < rightWeight ? leftWeight : rightWeight);
 	
-	      // negaative HWR means uphill
+	      // negative HWR means uphill
 	      const heightWidthRatio = (point.y - prevPoint.y) / (point.x - prevPoint.x);
 	      const y = (prevPoint.y * leftWeight + point.y * rightWeight);
 	
@@ -211,23 +211,23 @@
 	
 	    this.h = Math.random() * 360;
 	    this.s = 100;
-	    this.l = 30;
+	    this.l = 20;
 	}
 	
 	Color.prototype.step = function(){
 	  this.h >= 360 ? this.h = 0 : this.h += .5;
 	
-	  if(this.lIncreasing){
-	    if(this.l >= 15){
-	      this.lIncreasing = false;
-	      this.l -= .05;
-	    } else this.l += .05;
-	  } else {
-	    if(this.l <= 0){
-	      this.lIncreasing = true;
-	      this.l += .05;
-	    } else this.l -= .05;
-	  }
+	  // if(this.lIncreasing){
+	  //   if(this.l >= 10){
+	  //     this.lIncreasing = false;
+	  //     this.l -= .05;
+	  //   } else this.l += .05;
+	  // } else {
+	  //   if(this.l <= 0){
+	  //     this.lIncreasing = true;
+	  //     this.l += .05;
+	  //   } else this.l -= .05;
+	  // }
 	
 	  // lightness could depend on how well we're doing
 	};
@@ -247,7 +247,37 @@
 
 /***/ },
 /* 5 */,
-/* 6 */,
+/* 6 */
+/***/ function(module, exports) {
+
+	function Point(x, y, speed, pendulum){
+	  this.x = x;
+	  this.y = y;
+	  this.oldY = y;
+	  this.oldX = x;
+	
+	  this.pendulum = pendulum || false;
+	  this.angle = Math.random() * 60;
+	  this.speed = speed;
+	  this.amplitude = Math.random() * 30;
+	}
+	
+	Point.prototype.swing = function () {
+	  this.x = this.oldX + Math.sin(this.angle) * this.amplitude / 2;
+	};
+	
+	Point.prototype.move = function (speed) {
+	  this.y = this.oldY + Math.sin(this.angle) * this.amplitude;
+	  if(this.pendulum) this.swing();
+	  this.x -= speed;
+	  this.oldX -= speed;
+	  this.angle += this.speed;
+	};
+	
+	module.exports = Point;
+
+
+/***/ },
 /* 7 */
 /***/ function(module, exports) {
 
@@ -290,20 +320,21 @@
 	const Mass = __webpack_require__(9);
 	const Color = __webpack_require__(4);
 	
-	function Scape(canvas, dif) {
-	  this.dif = dif;
+	function Scape(canvas, level) {
+	  this.dif = level * 60;
 	  this.canvas = canvas;
-	  this.spacing = 200;
-	  this.speed = 3;
+	  this.spacing = 300;
+	  this.speed = 3 + .5 * level;
 	  this.masses = Mass.generateMasses(
 	    canvas.width,
 	    canvas.height,
+	    level,
 	    this.spacing
 	  );
 	}
 	
 	Scape.prototype.move = function () {
-	  this.masses.forEach( (mass, i) => {
+	  this.masses.forEach( mass => {
 	    mass.move(this.speed);
 	  });
 	  this.keepMassesInBounds();
@@ -325,12 +356,13 @@
 	  const masses = this.masses;
 	  const spacing = this.spacing;
 	
-	  if(masses[0].x3 < (0 - spacing * 2)){
-	    const newMass = new Mass(
-	      masses[masses.length-1].x3 + spacing,
-	      masses[0].y1 - Math.random() * 20
+	  if(masses[0].points[2].x < (0 - spacing * 2)){
+	    let randomOffset = Math.random() * 300;
+	    const mass = new Mass(
+	      masses[masses.length-1].points[2].x + spacing + (Math.random() * 120 - 60),
+	      this.canvas.height / 2 + randomOffset
 	    );
-	    masses.push(newMass);
+	    masses.push(mass);
 	    masses.shift();
 	  }
 	};
@@ -343,35 +375,42 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	const Color = __webpack_require__(4);
+	const Point = __webpack_require__(6);
 	
 	function Mass(x, y){
-	  this.x1 = x + (Math.random() * 40 + 20);
-	  this.y1 = y + Math.random() * 40;
-	  this.x2 = x - (Math.random() * 40 + 20);
-	  this.y2 = y + Math.random() * 40;
-	  this.x3 = x;
-	  this.y3 = y + Math.random() * 100 + 75;
+	  const x1 = x + (Math.random() * 30 + 40);
+	  const y1 = y + Math.random() * 30;
+	  const x2 = x - (Math.random() * 30 + 40);
+	  const y2 = y + Math.random() * 30;
+	  const x3 = x;
+	  const y3 = y + Math.random() * 100 + 75;
+	  const speed = 0.0175 + Math.random()*0.0175;
+	
+	  this.points = [];
+	  this.points.push(new Point(x1, y1, speed));
+	  this.points.push(new Point(x2, y2, speed));
+	  this.points.push(new Point(x3, y3, speed, true));
 	}
 	
 	Mass.prototype.render = function (ctx) {
 	  ctx.beginPath();
-	  ctx.moveTo(this.x1, this.y1);
-	  ctx.lineTo(this.x2, this.y2);
-	  ctx.lineTo(this.x3, this.y3);
+	  ctx.moveTo(this.points[0].x, this.points[0].y);
+	  ctx.lineTo(this.points[1].x, this.points[1].y);
+	  ctx.lineTo(this.points[2].x, this.points[2].y);
 	  ctx.fill();
 	};
 	
 	Mass.prototype.move = function (speed) {
-	  this.x1 -= speed;
-	  this.x2 -= speed;
-	  this.x3 -= speed;
+	  this.points.forEach( point => {
+	    point.move(speed);
+	  });
 	};
 	
-	Mass.generateMasses = function(width, height, spacing){
+	Mass.generateMasses = function(width, height, level, spacing){
 	  const yCenter = height / 2;
 	  const masses = [];
 	
-	  for (let x = -(spacing * 2); x <= width + spacing * 2; x += spacing) {
+	  for (let x = -(spacing * 2 + level * spacing / 3); x <= width + spacing * 2; x += spacing) {
 	    let randomOffset = Math.random() * 300;
 	    const mass = new Mass(
 	      x + (Math.random() * 120 - 60),
