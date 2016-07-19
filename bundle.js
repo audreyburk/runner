@@ -90,11 +90,12 @@
 	  this.player.move();
 	};
 	
-	Game.prototype.run = function(){
+	Game.prototype.run = function(td){
+	  console.log(td);
 	  Color.step();
 	  this.move();
 	  this.render();
-	  window.requestAnimationFrame(() => this.run());
+	  window.requestAnimationFrame(td => this.run(td));
 	};
 	
 	module.exports = Game;
@@ -109,20 +110,25 @@
 	
 	function Player(scapes){
 	  this.scapes = scapes;
+	  this.state = 0;
+	
+	  this.maxSpeed = 5;
+	  this.speed = 0;
 	
 	  this.radius = 20;
 	  this.angle = 0;
-	  this.maxSpeed = 6;
-	  this.speed = 0;
-	  this.state = 0;
 	  this.x = 300;
 	  this.y = 200;
+	
 	  this.grounded = true;
 	  this.fallSpeed = 0;
 	  this.fallTime = 0;
+	  this.canJump = true;
+	  this.jumping = false;
 	}
 	
 	Player.prototype.render = function (ctx) {
+	  console.log(this.speed);
 	  const speedRatio = Math.abs(this.speed) / this.maxSpeed;
 	  const grow = (1 + speedRatio * .15);
 	  const shrink = (1 - speedRatio * .15);
@@ -162,20 +168,30 @@
 	  } else if(Listener.pressed(39)){
 	    this.speed += delta;
 	    if(this.speed > max) this.speed = max;
-	    debugger
 	  } else {
 	    if(true){}
 	  }
 	
 	  // may want a jump toggle on key release
-	  if(this.grounded && Listener.pressed(38)){
-	    this.grounded = false;
-	    this.fallSpeed = -8;
+	  if(Listener.pressed(38)){
+	    if(this.canJump){
+	      this.jump();
+	    }
+	  } else {
+	    this.jumping = false;
+	    if(this.grounded) this.canJump = true;
 	  }
 	};
 	
 	Player.prototype.scape = function () {
 	  return this.scapes[this.state];
+	};
+	
+	Player.prototype.jump = function () {
+	  this.grounded = false;
+	  this.fallSpeed = -8;
+	  this.jumping = true;
+	  this.canJump = false;
 	};
 	
 	Player.prototype.turn = function () {
@@ -191,15 +207,17 @@
 	  // maybe should not multiply by drag, just keep low?
 	  if(this.grounded){
 	    if(this.speed > drag){
-	      this.speed -= .1;
+	      this.speed -= .15;
 	      if(this.speed < drag) this.speed = drag;
 	    } else if (this.speed < drag){
-	      this.speed += .1;
+	      this.speed += .15;
 	      if(this.speed > drag) this.speed = drag;
 	    }
+	
 	  }
 	  const massY = this.massY();
 	  if(!this.grounded){
+	    this.canJump = false;
 	    this.fall(massY);
 	  } else {
 	    // need to track current mass?
@@ -220,11 +238,11 @@
 	};
 	
 	Player.prototype.fall = function (massY) {
-	  this.fallTime += .03;
+	  const delta = (this.jumping ? .01 : .05)
+	  this.fallTime += delta;
 	  this.fallSpeed += this.fallTime;
 	  this.y += this.fallSpeed;
 	
-	  console.log(massY);
 	  const dif = massY - this.y
 	  if(dif < 0 && Math.abs(dif) < this.fallSpeed * 2){
 	    this.y = massY;
@@ -255,6 +273,8 @@
 	  });
 	  return y;
 	};
+	
+	
 	
 	module.exports = Player;
 
@@ -382,8 +402,8 @@
 	function Scape(canvas, level) {
 	  this.dif = level * 60;
 	  this.canvas = canvas;
-	  this.spacing = 300; // 200 ish?
-	  this.speed = -3 - .5 * level; // -3 is good with slow music!
+	  this.spacing = 500; // 250 ish?
+	  this.speed = -5 - .5 * level; // -3 is good with slow music!
 	  this.masses = Mass.generateMasses(
 	    canvas.width,
 	    canvas.height,
@@ -437,9 +457,9 @@
 	const Point = __webpack_require__(8);
 	
 	function Mass(x, y){
-	  const x1 = x + (Math.random() * 50 + 50);
+	  const x1 = x + (Math.random() * 50 + 150);
 	  const y1 = y + Math.random() * 50;
-	  const x2 = x - (Math.random() * 50 + 50);
+	  const x2 = x - (Math.random() * 50 + 150);
 	  const y2 = y + Math.random() * 50;
 	  const x3 = x;
 	  const y3 = y + Math.random() * 100 + 100;
