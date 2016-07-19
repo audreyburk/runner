@@ -62,7 +62,7 @@
 	
 	function Game(){
 	  this.canvas = new Canvas;
-	  const scape1 = new Scape(this.canvas, 0, -3);
+	  const scape1 = new Scape(this.canvas, -1, -3);
 	  const scape2 = new Scape(this.canvas, 1, -3);
 	  this.scapes = [scape1, scape2];
 	  this.player = new Player(this.scapes);
@@ -180,13 +180,13 @@
 	
 	  if(this.grounded){
 	    if(this.speed > drag){
-	      this.speed -= .15;
+	      this.speed -= .2;
 	      if(this.speed < drag) this.speed = drag;
 	    } else if (this.speed < drag){
-	      this.speed += .15;
+	      this.speed += .2;
 	      if(this.speed > drag) this.speed = drag;
 	    }
-	    this.speed += this.massSlope();
+	    this.speed += .6 * this.massSlope();
 	  }
 	  const massY = this.massY();
 	  if(!this.grounded){
@@ -196,7 +196,7 @@
 	
 	    // need to track current mass?
 	    // see if we fell off of it?
-	    if(massY === 0 || massY > this.y + 5){
+	    if(massY === 0 || massY > this.y + 5 + this.massSlope() * this.speed){
 	      this.grounded = false;
 	    } else {
 	      this.y = massY;
