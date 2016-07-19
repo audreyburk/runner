@@ -54,9 +54,9 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	const Player = __webpack_require__(2);
-	const Canvas = __webpack_require__(3);
-	const Scape = __webpack_require__(8);
-	const Color = __webpack_require__(4);
+	const Canvas = __webpack_require__(5);
+	const Scape = __webpack_require__(6);
+	const Color = __webpack_require__(3);
 	
 	// global singleton canvas, or too dangerous?
 	
@@ -104,12 +104,18 @@
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Color = __webpack_require__(4);
-	const Listener = __webpack_require__(7);
+	const Color = __webpack_require__(3);
+	const Listener = __webpack_require__(4);
 	
 	function Player(scapes){
 	  this.scapes = scapes;
-	  this.x = 400;
+	
+	  this.radius = 20;
+	  this.angle = 0;
+	  this.maxSpeed = 6;
+	  this.speed = 0;
+	  this.state = 0;
+	  this.x = 300;
 	  this.y = 200;
 	  this.grounded = true;
 	  this.fallSpeed = 0;
@@ -117,57 +123,137 @@
 	}
 	
 	Player.prototype.render = function (ctx) {
-	  ctx.fillStyle = Color.main();
+	  const speedRatio = Math.abs(this.speed) / this.maxSpeed;
+	  const grow = (1 + speedRatio * .15);
+	  const shrink = (1 - speedRatio * .15);
+	
+	  ctx.fillStyle = Color.player();
 	  ctx.beginPath();
-	  ctx.ellipse(this.x, this.y, 20, 20, 0, 0, Math.PI * 2, false);
+	  ctx.ellipse(
+	    this.x,
+	    this.y - this.radius * shrink,
+	    this.radius * grow,
+	    this.radius * shrink,
+	    0, 0 + this.angle,
+	    Math.PI + this.angle);
+	  ctx.fill();
+	
+	  ctx.beginPath();
+	  ctx.fillStyle = "white";
+	  ctx.ellipse(
+	    this.x,
+	    this.y - this.radius * shrink,
+	    this.radius * grow,
+	    this.radius * shrink,
+	    0, Math.PI + this.angle,
+	    Math.PI * 2 + this.angle);
 	  ctx.fill();
 	};
 	
-	Player.prototype.move = function () {
+	Player.prototype.checkInput = function () {
+	  const drag = this.scape().speed;
+	  const max = this.maxSpeed;
+	  const delta = (this.grounded ? .8 : .4);
+	  // allow higher/lower max when on slant!
+	
+	  if(Listener.pressed(37)) {
+	    this.speed -= delta;
+	    if(this.speed < drag - max) this.speed = drag - max;
+	  } else if(Listener.pressed(39)){
+	    this.speed += delta;
+	    if(this.speed > max) this.speed = max;
+	    debugger
+	  } else {
+	    if(true){}
+	  }
+	
+	  // may want a jump toggle on key release
 	  if(this.grounded && Listener.pressed(38)){
 	    this.grounded = false;
 	    this.fallSpeed = -8;
 	  }
-	  const waveData = this.waveData();
-	  if(!this.grounded){
-	    this.fall(waveData);
-	  }
 	};
 	
-	Player.prototype.fall = function (waveData) {
-	  this.fallTime += .05;
+	Player.prototype.scape = function () {
+	  return this.scapes[this.state];
+	};
+	
+	Player.prototype.turn = function () {
+	  this.angle += 0.05 * (this.speed - this.scape().speed);
+	};
+	
+	Player.prototype.move = function () {
+	  this.checkInput();
+	  this.turn();
+	  const drag = this.scape().speed;
+	
+	  // let player be carried by masses
+	  // maybe should not multiply by drag, just keep low?
+	  if(this.grounded){
+	    if(this.speed > drag){
+	      this.speed -= .1;
+	      if(this.speed < drag) this.speed = drag;
+	    } else if (this.speed < drag){
+	      this.speed += .1;
+	      if(this.speed > drag) this.speed = drag;
+	    }
+	  }
+	  const massY = this.massY();
+	  if(!this.grounded){
+	    this.fall(massY);
+	  } else {
+	    // need to track current mass?
+	    // see if we fell off of it?
+	    if(massY === 99999){
+	      this.grounded = false;
+	    } else {
+	      this.y = massY;
+	    }
+	  }
+	
+	  this.x += this.speed;
+	
+	  // const scape()Data = this.waveData();
+	  // if(!this.grounded){
+	  //   this.fall(waveData);
+	  // }
+	};
+	
+	Player.prototype.fall = function (massY) {
+	  this.fallTime += .03;
 	  this.fallSpeed += this.fallTime;
 	  this.y += this.fallSpeed;
 	
-	  if(this.y > waveData[0]){
-	    this.y = waveData[0];
+	  console.log(massY);
+	  const dif = massY - this.y
+	  if(dif < 0 && Math.abs(dif) < this.fallSpeed * 2){
+	    this.y = massY;
 	    this.grounded = true;
 	    this.fallSpeed = 0;
 	    this.fallTime = 0;
 	  }
 	};
 	
-	Player.prototype.waveData = function () {
-	  for(let i = 0; i < this.wave.points.length; i++){
-	    const point = this.wave.points[i];
-	    if(point.x > this.x){
-	      const prevPoint = this.wave.points[i-1];
-	
-	      const total = Math.abs(point.x - prevPoint.x)
-	      const left = Math.abs(this.x - prevPoint.x);
-	      const right = Math.abs(this.x - point.x);
+	Player.prototype.massY = function () {
+	  let y = 99999;
+	  this.scape().masses.forEach( mass => {
+	    if(mass.left.x < this.x && mass.right.x > this.x){
+	      const total = Math.abs(mass.right.x - mass.left.x)
+	      const left = Math.abs(this.x - mass.left.x);
+	      const right = Math.abs(this.x - mass.right.x);
 	      const leftWeight = right / total; // opposite on purpose
 	      const rightWeight = left / total; // closer should mean bigger, not smaller
 	
 	      // this.tilt = (Math.PI / 2) * heightWidthRatio * (leftWeight < rightWeight ? leftWeight : rightWeight);
 	
 	      // negative HWR means uphill
-	      const heightWidthRatio = (point.y - prevPoint.y) / (point.x - prevPoint.x);
-	      const y = (prevPoint.y * leftWeight + point.y * rightWeight);
+	      // const heightWidthRatio = (point.y - prevPoint.y) / (point.x - prevPoint.x);
 	
-	      return [y, heightWidthRatio];
+	      // needs to return all in case of overlap!
+	      y = (mass.left.y * leftWeight + mass.right.y * rightWeight);
 	    }
-	  }
+	  });
+	  return y;
 	};
 	
 	module.exports = Player;
@@ -175,43 +261,14 @@
 
 /***/ },
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
-
-	const Color = __webpack_require__(4);
-	
-	function Canvas(){
-	  this.self = document.getElementById("canvas")
-	
-	  this.self.width = window.innerWidth;
-	  this.self.height = window.innerHeight;
-	
-	  this.width = this.self.width;
-	  this.height = this.self.height;
-	  this.ctx = this.self.getContext("2d");
-	
-	
-	  this.ctx.globalAlpha = 0.7;
-	}
-	
-	Canvas.prototype.render = function () {
-	  this.self.style.background = Color.main();
-	  this.ctx.clearRect(0, 0, this.width, this.height);
-	};
-	
-	
-	module.exports = Canvas;
-
-
-/***/ },
-/* 4 */
 /***/ function(module, exports) {
 
 	function Color(){
-	    this.lIncreasing = true;
+	  this.lIncreasing = true;
 	
-	    this.h = Math.random() * 360;
-	    this.s = 100;
-	    this.l = 20;
+	  this.h = Math.random() * 360;
+	  this.s = 100;
+	  this.l = 40;
 	}
 	
 	Color.prototype.step = function(){
@@ -233,12 +290,17 @@
 	};
 	
 	Color.prototype.main = function () {
-	  const hsla = `hsla(${this.h}, ${this.s}%, ${this.l}%, 1)`;
+	  const hsla = `hsla(${this.h}, ${this.s}%, ${0}%, 1)`;
 	  return hsla;
 	};
 	
 	Color.prototype.mass = function (dif) {
-	  const hsla = `hsla(${this.h + 135 + dif}, ${this.s}%, ${40}%, 1)`;
+	  const hsla = `hsla(${this.h + 135 + dif}, ${this.s}%, ${this.l}%, 1)`;
+	  return hsla;
+	};
+	
+	Color.prototype.player = function () {
+	  const hsla = `hsla(${this.h}, ${this.s}%, ${this.l}%, 1)`;
 	  return hsla;
 	};
 	
@@ -246,39 +308,7 @@
 
 
 /***/ },
-/* 5 */,
-/* 6 */
-/***/ function(module, exports) {
-
-	function Point(x, y, speed, pendulum){
-	  this.x = x;
-	  this.y = y;
-	  this.oldY = y;
-	  this.oldX = x;
-	
-	  this.pendulum = pendulum || false;
-	  this.angle = Math.random() * 60;
-	  this.speed = speed;
-	  this.amplitude = Math.random() * 30;
-	}
-	
-	Point.prototype.swing = function () {
-	  this.x = this.oldX + Math.sin(this.angle) * this.amplitude / 2;
-	};
-	
-	Point.prototype.move = function (speed) {
-	  this.y = this.oldY + Math.sin(this.angle) * this.amplitude;
-	  if(this.pendulum) this.swing();
-	  this.x -= speed;
-	  this.oldX -= speed;
-	  this.angle += this.speed;
-	};
-	
-	module.exports = Point;
-
-
-/***/ },
-/* 7 */
+/* 4 */
 /***/ function(module, exports) {
 
 	const _viableKeys = [37, 38, 39, 40];
@@ -314,17 +344,46 @@
 
 
 /***/ },
-/* 8 */
+/* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Mass = __webpack_require__(9);
-	const Color = __webpack_require__(4);
+	const Color = __webpack_require__(3);
+	
+	function Canvas(){
+	  this.self = document.getElementById("canvas")
+	
+	  this.self.width = window.innerWidth;
+	  this.self.height = window.innerHeight;
+	
+	  this.width = this.self.width;
+	  this.height = this.self.height;
+	  this.ctx = this.self.getContext("2d");
+	
+	
+	  this.ctx.globalAlpha = 0.7;
+	}
+	
+	Canvas.prototype.render = function () {
+	  this.self.style.background = Color.main();
+	  this.ctx.clearRect(0, 0, this.width, this.height);
+	};
+	
+	
+	module.exports = Canvas;
+
+
+/***/ },
+/* 6 */
+/***/ function(module, exports, __webpack_require__) {
+
+	const Mass = __webpack_require__(7);
+	const Color = __webpack_require__(3);
 	
 	function Scape(canvas, level) {
 	  this.dif = level * 60;
 	  this.canvas = canvas;
-	  this.spacing = 300;
-	  this.speed = 3 + .5 * level;
+	  this.spacing = 300; // 200 ish?
+	  this.speed = -3 - .5 * level; // -3 is good with slow music!
 	  this.masses = Mass.generateMasses(
 	    canvas.width,
 	    canvas.height,
@@ -356,10 +415,10 @@
 	  const masses = this.masses;
 	  const spacing = this.spacing;
 	
-	  if(masses[0].points[2].x < (0 - spacing * 2)){
-	    let randomOffset = Math.random() * 300;
+	  if(masses[0].bottom.x < (0 - spacing * 2)){
+	    let randomOffset = Math.random() * 150;
 	    const mass = new Mass(
-	      masses[masses.length-1].points[2].x + spacing + (Math.random() * 120 - 60),
+	      masses[masses.length-1].bottom.x + spacing + (Math.random() * 120 - 60),
 	      this.canvas.height / 2 + randomOffset
 	    );
 	    masses.push(mass);
@@ -371,39 +430,38 @@
 
 
 /***/ },
-/* 9 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Color = __webpack_require__(4);
-	const Point = __webpack_require__(6);
+	const Color = __webpack_require__(3);
+	const Point = __webpack_require__(8);
 	
 	function Mass(x, y){
-	  const x1 = x + (Math.random() * 30 + 40);
-	  const y1 = y + Math.random() * 30;
-	  const x2 = x - (Math.random() * 30 + 40);
-	  const y2 = y + Math.random() * 30;
+	  const x1 = x + (Math.random() * 50 + 50);
+	  const y1 = y + Math.random() * 50;
+	  const x2 = x - (Math.random() * 50 + 50);
+	  const y2 = y + Math.random() * 50;
 	  const x3 = x;
-	  const y3 = y + Math.random() * 100 + 75;
+	  const y3 = y + Math.random() * 100 + 100;
 	  const speed = 0.0175 + Math.random()*0.0175;
 	
-	  this.points = [];
-	  this.points.push(new Point(x1, y1, speed));
-	  this.points.push(new Point(x2, y2, speed));
-	  this.points.push(new Point(x3, y3, speed, true));
+	  this.right = new Point(x1, y1, speed);
+	  this.left = new Point(x2, y2, speed);
+	  this.bottom = new Point(x3, y3, speed, true);
 	}
 	
 	Mass.prototype.render = function (ctx) {
 	  ctx.beginPath();
-	  ctx.moveTo(this.points[0].x, this.points[0].y);
-	  ctx.lineTo(this.points[1].x, this.points[1].y);
-	  ctx.lineTo(this.points[2].x, this.points[2].y);
+	  ctx.moveTo(this.right.x, this.right.y);
+	  ctx.lineTo(this.left.x, this.left.y);
+	  ctx.lineTo(this.bottom.x, this.bottom.y);
 	  ctx.fill();
 	};
 	
 	Mass.prototype.move = function (speed) {
-	  this.points.forEach( point => {
-	    point.move(speed);
-	  });
+	  this.right.move(speed);
+	  this.left.move(speed);
+	  this.bottom.move(speed);
 	};
 	
 	Mass.generateMasses = function(width, height, level, spacing){
@@ -411,7 +469,7 @@
 	  const masses = [];
 	
 	  for (let x = -(spacing * 2 + level * spacing / 3); x <= width + spacing * 2; x += spacing) {
-	    let randomOffset = Math.random() * 300;
+	    let randomOffset = Math.random() * 150;
 	    const mass = new Mass(
 	      x + (Math.random() * 120 - 60),
 	      yCenter + randomOffset
@@ -422,6 +480,37 @@
 	};
 	
 	module.exports = Mass;
+
+
+/***/ },
+/* 8 */
+/***/ function(module, exports) {
+
+	function Point(x, y, speed, pendulum){
+	  this.x = x;
+	  this.y = y;
+	  this.oldY = y;
+	  this.oldX = x;
+	
+	  this.pendulum = pendulum || false;
+	  this.angle = Math.random() * 60;
+	  this.speed = speed;
+	  this.amplitude = Math.random() * 30;
+	}
+	
+	Point.prototype.swing = function () {
+	  this.x = this.oldX + Math.sin(this.angle) * this.amplitude / 2;
+	};
+	
+	Point.prototype.move = function (speed) {
+	  this.y = this.oldY + Math.sin(this.angle) * this.amplitude;
+	  if(this.pendulum) this.swing();
+	  this.x += speed;
+	  this.oldX += speed;
+	  this.angle += this.speed;
+	};
+	
+	module.exports = Point;
 
 
 /***/ }
