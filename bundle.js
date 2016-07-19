@@ -480,12 +480,15 @@
 	const Point = __webpack_require__(8);
 	
 	function Mass(x, y){
+	  const rand1 = Math.random() * 180;
+	  const rand2 = Math.random() * 180;
+	
 	  const x1 = x + (Math.random() * 100 + 50);
-	  const y1 = y + Math.random() * 180;
+	  const y1 = y + rand1;
 	  const x2 = x - (Math.random() * 100 + 50);
-	  const y2 = y + Math.random() * 180;
+	  const y2 = y + rand2;
 	  const x3 = x;
-	  const y3 = y + Math.random() * 100 + 200;
+	  const y3 = y + (rand1 + rand2) / 2 + Math.random() * 75 + 75;
 	  const speed = 0.0175 + Math.random()*0.0275;
 	
 	  this.right = new Point(x1, y1, speed);
