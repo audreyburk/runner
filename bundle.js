@@ -62,11 +62,9 @@
 	
 	function Game(){
 	  this.canvas = new Canvas;
-	  this.scapes = [];
-	  for(let i = 0; i < 1; i++){
-	    const scape = new Scape(this.canvas, i);
-	    this.scapes.push(scape);
-	  }
+	  const scape1 = new Scape(this.canvas, 0, -3);
+	  const scape2 = new Scape(this.canvas, 1, -3);
+	  this.scapes = [scape1, scape2];
 	  this.player = new Player(this.scapes);
 	}
 	
@@ -116,19 +114,20 @@
 	
 	  this.radius = 20;
 	  this.angle = 0;
-	  this.x = 300;
+	  this.x = window.innerWidth / 2;
 	  this.y = 200;
 	
-	  this.grounded = true;
-	  this.fallSpeed = 0;
+	  this.grounded = false;
+	  this.fallSpeed = -10;
 	  this.fallTime = 0;
-	  this.canJump = true;
+	  this.canJump = false;
 	  this.jumping = false;
 	}
 	
 	Player.prototype.checkInput = function () {
 	  const drag = this.scape().speed;
-	  const max = this.maxSpeed;
+	  const max = this.maxSpeed; // should be determined by slope, yes?
+	                             // cant' just set, though, gotta decrement
 	  const delta = (this.grounded ? .8 : .4);
 	  // allow higher/lower max when on slant!
 	
@@ -143,9 +142,14 @@
 	  }
 	
 	  // may want a jump toggle on key release
-	  if(Listener.pressed(38)){
+	  if(Listener.pressed(38) || Listener.pressed(68)){
 	    if(this.canJump){
 	      this.jump();
+	    }
+	  } else if(Listener.pressed(40) || Listener.pressed(70)){
+	    if(this.canJump){
+	      this.jump();
+	      this.state ^= 1;
 	    }
 	  } else {
 	    this.jumping = false;
@@ -159,7 +163,8 @@
 	
 	Player.prototype.jump = function () {
 	  this.grounded = false;
-	  this.fallSpeed = -8 - .5 * (this.scape().speed - this.speed) * this.massSlope(); // + this.speed * mass.slope
+	  this.fallSpeed = -8 - .5 * (this.scape().speed - this.speed) * this.massSlope();
+	  // should this also be impacted by the direction the jump point is going?
 	  this.jumping = true;
 	  this.canJump = false;
 	};
@@ -184,7 +189,6 @@
 	    this.speed += this.massSlope();
 	  }
 	  const massY = this.massY();
-	  console.log(this.massSlope());
 	  if(!this.grounded){
 	    this.canJump = false;
 	    this.fall(massY);
@@ -209,6 +213,8 @@
 	
 	Player.prototype.fall = function (massY) {
 	  const delta = (this.jumping ? .02 : .05)
+	  /// TODO: this should not jump like so, but decrement if not held.
+	
 	  this.fallTime += delta;
 	  this.fallSpeed += this.fallTime;
 	  this.y += this.fallSpeed;
@@ -254,6 +260,7 @@
 	  const shrink = (1 - speedRatio * .15);
 	
 	  ctx.fillStyle = Color.player();
+	  // ctx.fillStyle = Color.mass();
 	  ctx.beginPath();
 	  ctx.ellipse(
 	    this.x,
@@ -265,7 +272,8 @@
 	  ctx.fill();
 	
 	  ctx.beginPath();
-	  ctx.fillStyle = "white";
+	  // ctx.fillStyle = "white";
+	  ctx.fillStyle = Color.mass(this.scape().dif);
 	  ctx.ellipse(
 	    this.x,
 	    this.y - this.radius * shrink,
@@ -332,7 +340,7 @@
 /* 4 */
 /***/ function(module, exports) {
 
-	const _viableKeys = [37, 38, 39, 40];
+	const _viableKeys = [37, 38, 39, 40, 68, 70];
 	
 	function Listener(){
 	  this.keys = {};
@@ -343,6 +351,7 @@
 	
 	Listener.prototype._keyDown = function (e) {
 	  const code = e.keyCode;
+	  console.log(code);
 	  if(_viableKeys.includes(code)){
 	    e.preventDefault();
 	    this.keys[e.keyCode] = true;
@@ -400,11 +409,12 @@
 	const Mass = __webpack_require__(7);
 	const Color = __webpack_require__(3);
 	
-	function Scape(canvas, level) {
+	function Scape(canvas, level, speed) {
 	  this.dif = level * 60;
 	  this.canvas = canvas;
-	  this.spacing = 200; // 250 ish?
-	  this.speed = -4 - .5 * level; // -3 is good with slow music!
+	  this.spacing = 200;
+	
+	  this.speed = speed; // -3 is good with slow music!
 	  this.masses = Mass.generateMasses(
 	    canvas.width,
 	    canvas.height,
@@ -412,6 +422,10 @@
 	    this.spacing
 	  );
 	}
+	
+	Scape.prototype.spread = function () {
+	  return Math.random() * 600 - 600;
+	};
 	
 	Scape.prototype.move = function () {
 	  this.masses.forEach( mass => {
@@ -437,13 +451,21 @@
 	  const spacing = this.spacing;
 	
 	  if(masses[0].bottom.x < (0 - spacing * 2)){
-	    let randomOffset = Math.random() * 150;
 	    const mass = new Mass(
 	      masses[masses.length-1].bottom.x + spacing + (Math.random() * 120 - 60),
-	      this.canvas.height / 2 + randomOffset
+	      this.canvas.height / 2 + this.spread()
 	    );
 	    masses.push(mass);
 	    masses.shift();
+	  }
+	
+	  if(masses[masses.length-1].bottom.x > (this.canvas.width + spacing * 2)){
+	    const mass = new Mass(
+	      masses[0].bottom.x - spacing - (Math.random() * 120 - 60),
+	      this.canvas.height / 2 + this.spread()
+	    );
+	    masses.unshift(mass);
+	    masses.pop();
 	  }
 	};
 	
@@ -458,9 +480,9 @@
 	const Point = __webpack_require__(8);
 	
 	function Mass(x, y){
-	  const x1 = x + (Math.random() * 50 + 150);
+	  const x1 = x + (Math.random() * 100 + 50);
 	  const y1 = y + Math.random() * 180;
-	  const x2 = x - (Math.random() * 50 + 150);
+	  const x2 = x - (Math.random() * 100 + 50);
 	  const y2 = y + Math.random() * 180;
 	  const x3 = x;
 	  const y3 = y + Math.random() * 100 + 200;
@@ -489,11 +511,11 @@
 	  const yCenter = height / 2;
 	  const masses = [];
 	
-	  for (let x = -(spacing * 2 + level * spacing / 3); x <= width + spacing * 2; x += spacing) {
-	    let randomOffset = Math.random() * 150;
+	  for (let x = -(spacing * 2 + level * spacing / 2); x <= width + spacing * 2; x += spacing) {
+	    const spread = Math.random() * 300 - 400;
 	    const mass = new Mass(
 	      x + (Math.random() * 120 - 60),
-	      yCenter + randomOffset
+	      yCenter + spread
 	    );
 	    masses.push(mass);
 	  }
@@ -544,6 +566,8 @@
 	  this.x += speed;
 	  this.oldX += speed;
 	  this.angle += this.speed;
+	  this.oldY += .4; //  lett's have this as a scape iVar and mass iVar
+	                   //  change slightly every time we generate a mass
 	};
 	
 	module.exports = Point;
