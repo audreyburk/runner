@@ -91,7 +91,6 @@
 	};
 	
 	Game.prototype.run = function(td){
-	  console.log(td);
 	  Color.step();
 	  this.move();
 	  this.render();
@@ -128,7 +127,6 @@
 	}
 	
 	Player.prototype.render = function (ctx) {
-	  console.log(this.speed);
 	  const speedRatio = Math.abs(this.speed) / this.maxSpeed;
 	  const grow = (1 + speedRatio * .15);
 	  const shrink = (1 - speedRatio * .15);
@@ -189,7 +187,7 @@
 	
 	Player.prototype.jump = function () {
 	  this.grounded = false;
-	  this.fallSpeed = -8;
+	  this.fallSpeed = -8 - .5 * (this.scape().speed - this.speed) * this.massSlope(); // + this.speed * mass.slope
 	  this.jumping = true;
 	  this.canJump = false;
 	};
@@ -213,16 +211,17 @@
 	      this.speed += .15;
 	      if(this.speed > drag) this.speed = drag;
 	    }
-	
+	    this.speed += this.massSlope();
 	  }
 	  const massY = this.massY();
+	  console.log(this.massSlope());
 	  if(!this.grounded){
 	    this.canJump = false;
 	    this.fall(massY);
 	  } else {
 	    // need to track current mass?
 	    // see if we fell off of it?
-	    if(massY === 99999){
+	    if(massY === 0){
 	      this.grounded = false;
 	    } else {
 	      this.y = massY;
@@ -238,7 +237,7 @@
 	};
 	
 	Player.prototype.fall = function (massY) {
-	  const delta = (this.jumping ? .01 : .05)
+	  const delta = (this.jumping ? .02 : .05)
 	  this.fallTime += delta;
 	  this.fallSpeed += this.fallTime;
 	  this.y += this.fallSpeed;
@@ -252,28 +251,31 @@
 	  }
 	};
 	
-	Player.prototype.massY = function () {
-	  let y = 99999;
+	Player.prototype.mass = function () {
+	  let closestMass = null;
 	  this.scape().masses.forEach( mass => {
 	    if(mass.left.x < this.x && mass.right.x > this.x){
-	      const total = Math.abs(mass.right.x - mass.left.x)
-	      const left = Math.abs(this.x - mass.left.x);
-	      const right = Math.abs(this.x - mass.right.x);
-	      const leftWeight = right / total; // opposite on purpose
-	      const rightWeight = left / total; // closer should mean bigger, not smaller
+	      const y = mass.y(this.x);
 	
-	      // this.tilt = (Math.PI / 2) * heightWidthRatio * (leftWeight < rightWeight ? leftWeight : rightWeight);
-	
-	      // negative HWR means uphill
-	      // const heightWidthRatio = (point.y - prevPoint.y) / (point.x - prevPoint.x);
-	
-	      // needs to return all in case of overlap!
-	      y = (mass.left.y * leftWeight + mass.right.y * rightWeight);
+	      // TODO: turn the "5" into a sensible number
+	      //       prevents slipping through when mass shifts y
+	      if(y + 10 >= this.y && (!closestMass || y < closestMass.y(this.x))){
+	        closestMass = mass;
+	      }
 	    }
 	  });
-	  return y;
+	  return closestMass;
 	};
 	
+	Player.prototype.massY = function () {
+	  const mass = this.mass();
+	  return (mass ? mass.y(this.x) : 0);
+	};
+	
+	Player.prototype.massSlope = function () {
+	  const mass = this.mass();
+	  return (mass ? mass.slope() : 0);
+	};
 	
 	
 	module.exports = Player;
@@ -403,7 +405,7 @@
 	  this.dif = level * 60;
 	  this.canvas = canvas;
 	  this.spacing = 500; // 250 ish?
-	  this.speed = -5 - .5 * level; // -3 is good with slow music!
+	  this.speed = -4 - .5 * level; // -3 is good with slow music!
 	  this.masses = Mass.generateMasses(
 	    canvas.width,
 	    canvas.height,
@@ -458,12 +460,12 @@
 	
 	function Mass(x, y){
 	  const x1 = x + (Math.random() * 50 + 150);
-	  const y1 = y + Math.random() * 50;
+	  const y1 = y + Math.random() * 180;
 	  const x2 = x - (Math.random() * 50 + 150);
-	  const y2 = y + Math.random() * 50;
+	  const y2 = y + Math.random() * 180;
 	  const x3 = x;
-	  const y3 = y + Math.random() * 100 + 100;
-	  const speed = 0.0175 + Math.random()*0.0175;
+	  const y3 = y + Math.random() * 100 + 200;
+	  const speed = 0.0175 + Math.random()*0.0275;
 	
 	  this.right = new Point(x1, y1, speed);
 	  this.left = new Point(x2, y2, speed);
@@ -497,6 +499,21 @@
 	    masses.push(mass);
 	  }
 	  return masses;
+	};
+	
+	Mass.prototype.y = function (playerX) {
+	  const total = Math.abs(this.right.x - this.left.x)
+	  const left = Math.abs(playerX - this.left.x);
+	  const right = Math.abs(playerX - this.right.x);
+	
+	  const leftWeight = right / total; // opposite on purpose
+	  const rightWeight = left / total; // closer should mean bigger, not smaller
+	
+	  return (this.left.y * leftWeight + this.right.y * rightWeight);
+	};
+	
+	Mass.prototype.slope = function () {
+	  return (this.left.y - this.right.y) / (this.left.x - this.right.x);
 	};
 	
 	module.exports = Mass;
