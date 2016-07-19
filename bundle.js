@@ -54,9 +54,9 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	const Player = __webpack_require__(2);
-	const Canvas = __webpack_require__(3);
-	const Wave = __webpack_require__(5);
-	const Color = __webpack_require__(4);
+	const Canvas = __webpack_require__(5);
+	const Wave = __webpack_require__(9);
+	const Color = __webpack_require__(3);
 	
 	// global singleton canvas, or too dangerous?
 	
@@ -97,8 +97,8 @@
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Color = __webpack_require__(4);
-	const Listener = __webpack_require__(7);
+	const Color = __webpack_require__(3);
+	const Listener = __webpack_require__(4);
 	
 	function Player(wave){
 	  this.wave = wave;
@@ -188,35 +188,6 @@
 
 /***/ },
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
-
-	const Color = __webpack_require__(4);
-	
-	function Canvas(){
-	  this.self = document.getElementById("canvas")
-	
-	  this.self.width = window.innerWidth;
-	  this.self.height = window.innerHeight;
-	
-	  this.width = this.self.width;
-	  this.height = this.self.height;
-	  this.ctx = this.self.getContext("2d");
-	
-	
-	  this.ctx.globalAlpha = 0.7;
-	}
-	
-	Canvas.prototype.render = function () {
-	  this.self.style.background = Color.main();
-	  this.ctx.clearRect(0, 0, this.width, this.height);
-	};
-	
-	
-	module.exports = Canvas;
-
-
-/***/ },
-/* 4 */
 /***/ function(module, exports) {
 
 	function Color(){
@@ -272,11 +243,117 @@
 
 
 /***/ },
+/* 4 */
+/***/ function(module, exports) {
+
+	const _viableKeys = [37, 38, 39, 40];
+	
+	function Listener(){
+	  this.keys = {};
+	
+	  document.addEventListener("keydown", e => this._keyDown(e));
+	  document.addEventListener("keyup", e => this._keyUp(e));
+	}
+	
+	Listener.prototype._keyDown = function (e) {
+	  const code = e.keyCode;
+	  if(_viableKeys.includes(code)){
+	    e.preventDefault();
+	    this.keys[e.keyCode] = true;
+	  }
+	};
+	
+	Listener.prototype._keyUp = function (e) {
+	  const code = e.keyCode;
+	  if(_viableKeys.includes(code)){
+	    e.preventDefault();
+	    delete this.keys[code];
+	  }
+	};
+	
+	Listener.prototype.pressed = function (key) {
+	  return this.keys[key];
+	};
+	
+	module.exports = new Listener;
+
+
+/***/ },
 /* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Point = __webpack_require__(6);
-	const Color = __webpack_require__(4);
+	const Color = __webpack_require__(3);
+	
+	function Canvas(){
+	  this.self = document.getElementById("canvas")
+	
+	  this.self.width = window.innerWidth;
+	  this.self.height = window.innerHeight;
+	
+	  this.width = this.self.width;
+	  this.height = this.self.height;
+	  this.ctx = this.self.getContext("2d");
+	
+	
+	  this.ctx.globalAlpha = 0.7;
+	}
+	
+	Canvas.prototype.render = function () {
+	  this.self.style.background = Color.main();
+	  this.ctx.clearRect(0, 0, this.width, this.height);
+	};
+	
+	
+	module.exports = Canvas;
+
+
+/***/ },
+/* 6 */,
+/* 7 */,
+/* 8 */
+/***/ function(module, exports) {
+
+	function Point(x, y, oldY){
+	  this.x = x;
+	  this.y = y;
+	  this.oldY = oldY;
+	
+	  this.angle = Math.random() * 360;
+	  this.speed = 0.0175 + Math.random()*0.0175;
+	  this.amplitude = Math.random() * 15 + 15;
+	}
+	
+	Point.generatePoints = function(width, height, spacing){
+	  const yCenter = height / 2;
+	  const points = [];
+	
+	  for (let x = -(spacing * 2); x <= width + spacing * 2; x += spacing) {
+	    let randomOffset = Math.random() * 175;
+	    const point = new Point(
+	      x + (Math.random()*50 - 25),
+	      yCenter + randomOffset,
+	      yCenter + randomOffset
+	    );
+	    points.push(point);
+	  }
+	  return points;
+	};
+	
+	Point.prototype.move = function (speed) {
+	  this.y = this.oldY + Math.sin(this.angle) * this.amplitude;
+	  this.x += speed;
+	  this.angle += this.speed;
+	};
+	
+	module.exports = Point;
+
+
+/***/ },
+/* 9 */
+/***/ function(module, exports, __webpack_require__) {
+
+	const Point = __webpack_require__(8);
+	const Color = __webpack_require__(3);
 	
 	function Wave(canvas) {
 	  this.canvas = canvas;
@@ -336,81 +413,6 @@
 	};
 	
 	module.exports = Wave;
-
-
-/***/ },
-/* 6 */
-/***/ function(module, exports) {
-
-	function Point(x, y, oldY){
-	  this.x = x;
-	  this.y = y;
-	  this.oldY = oldY;
-	
-	  this.angle = Math.random() * 360;
-	  this.speed = 0.0175 + Math.random()*0.0175;
-	  this.amplitude = Math.random() * 15 + 15;
-	}
-	
-	Point.generatePoints = function(width, height, spacing){
-	  const yCenter = height / 2;
-	  const points = [];
-	
-	  for (let x = -(spacing * 2); x <= width + spacing * 2; x += spacing) {
-	    let randomOffset = Math.random() * 175;
-	    const point = new Point(
-	      x + (Math.random()*50 - 25),
-	      yCenter + randomOffset,
-	      yCenter + randomOffset
-	    );
-	    points.push(point);
-	  }
-	  return points;
-	};
-	
-	Point.prototype.move = function (speed) {
-	  this.y = this.oldY + Math.sin(this.angle) * this.amplitude;
-	  this.x += speed;
-	  this.angle += this.speed;
-	};
-	
-	module.exports = Point;
-
-
-/***/ },
-/* 7 */
-/***/ function(module, exports) {
-
-	const _viableKeys = [37, 38, 39, 40];
-	
-	function Listener(){
-	  this.keys = {};
-	
-	  document.addEventListener("keydown", e => this._keyDown(e));
-	  document.addEventListener("keyup", e => this._keyUp(e));
-	}
-	
-	Listener.prototype._keyDown = function (e) {
-	  const code = e.keyCode;
-	  if(_viableKeys.includes(code)){
-	    e.preventDefault();
-	    this.keys[e.keyCode] = true;
-	  }
-	};
-	
-	Listener.prototype._keyUp = function (e) {
-	  const code = e.keyCode;
-	  if(_viableKeys.includes(code)){
-	    e.preventDefault();
-	    delete this.keys[code];
-	  }
-	};
-	
-	Listener.prototype.pressed = function (key) {
-	  return this.keys[key];
-	};
-	
-	module.exports = new Listener;
 
 
 /***/ }
