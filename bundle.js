@@ -126,34 +126,6 @@
 	  this.jumping = false;
 	}
 	
-	Player.prototype.render = function (ctx) {
-	  const speedRatio = Math.abs(this.speed) / this.maxSpeed;
-	  const grow = (1 + speedRatio * .15);
-	  const shrink = (1 - speedRatio * .15);
-	
-	  ctx.fillStyle = Color.player();
-	  ctx.beginPath();
-	  ctx.ellipse(
-	    this.x,
-	    this.y - this.radius * shrink,
-	    this.radius * grow,
-	    this.radius * shrink,
-	    0, 0 + this.angle,
-	    Math.PI + this.angle);
-	  ctx.fill();
-	
-	  ctx.beginPath();
-	  ctx.fillStyle = "white";
-	  ctx.ellipse(
-	    this.x,
-	    this.y - this.radius * shrink,
-	    this.radius * grow,
-	    this.radius * shrink,
-	    0, Math.PI + this.angle,
-	    Math.PI * 2 + this.angle);
-	  ctx.fill();
-	};
-	
 	Player.prototype.checkInput = function () {
 	  const drag = this.scape().speed;
 	  const max = this.maxSpeed;
@@ -201,8 +173,6 @@
 	  this.turn();
 	  const drag = this.scape().speed;
 	
-	  // let player be carried by masses
-	  // maybe should not multiply by drag, just keep low?
 	  if(this.grounded){
 	    if(this.speed > drag){
 	      this.speed -= .15;
@@ -219,9 +189,10 @@
 	    this.canJump = false;
 	    this.fall(massY);
 	  } else {
+	
 	    // need to track current mass?
 	    // see if we fell off of it?
-	    if(massY === 0){
+	    if(massY === 0 || massY > this.y + 5){
 	      this.grounded = false;
 	    } else {
 	      this.y = massY;
@@ -275,6 +246,34 @@
 	Player.prototype.massSlope = function () {
 	  const mass = this.mass();
 	  return (mass ? mass.slope() : 0);
+	};
+	
+	Player.prototype.render = function (ctx) {
+	  const speedRatio = Math.abs(this.speed) / this.maxSpeed;
+	  const grow = (1 + speedRatio * .15);
+	  const shrink = (1 - speedRatio * .15);
+	
+	  ctx.fillStyle = Color.player();
+	  ctx.beginPath();
+	  ctx.ellipse(
+	    this.x,
+	    this.y - this.radius * shrink,
+	    this.radius * grow,
+	    this.radius * shrink,
+	    0, 0 + this.angle,
+	    Math.PI + this.angle);
+	  ctx.fill();
+	
+	  ctx.beginPath();
+	  ctx.fillStyle = "white";
+	  ctx.ellipse(
+	    this.x,
+	    this.y - this.radius * shrink,
+	    this.radius * grow,
+	    this.radius * shrink,
+	    0, Math.PI + this.angle,
+	    Math.PI * 2 + this.angle);
+	  ctx.fill();
 	};
 	
 	
@@ -404,7 +403,7 @@
 	function Scape(canvas, level) {
 	  this.dif = level * 60;
 	  this.canvas = canvas;
-	  this.spacing = 500; // 250 ish?
+	  this.spacing = 200; // 250 ish?
 	  this.speed = -4 - .5 * level; // -3 is good with slow music!
 	  this.masses = Mass.generateMasses(
 	    canvas.width,
